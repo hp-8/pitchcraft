@@ -1,0 +1,21 @@
+{
+  "url": "https://joespizza.example",
+  "vertical": "restaurant",
+  "slug": "joespizza-example",
+  "audited_at": "2026-05-20T12:00:00Z",
+  "screenshot_path": null,
+  "pagespeed": null,
+  "problems": [
+    {"code": "weak_cta", "severity": "high", "message": "no CTA above the fold"},
+    {"code": "no_phone", "severity": "high", "message": "phone hidden in footer"},
+    {"code": "no_reservation", "severity": "medium", "message": "no booking widget"},
+    {"code": "slow_lcp", "severity": "high", "message": "LCP 5800ms"}
+  ],
+  "dollar_impact": {
+    "monthly_loss_low": 400,
+    "monthly_loss_high": 900,
+    "breakdown": []
+  },
+  "firecrawl_error": null,
+  "pagespeed_error": null
+}
