@@ -24,8 +24,10 @@ def _connect(db_path: Path) -> sqlite3.Connection:
     return conn
 
 
-def init_db(db_path: Path = DEFAULT_DB_PATH) -> None:
+def init_db(db_path: Optional[Path] = None) -> None:
     """Create cache table if it doesn't exist."""
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
     with _connect(db_path) as conn:
         conn.execute(
             """
@@ -45,9 +47,11 @@ def get(
     source: str,
     query: str,
     ttl_seconds: Union[int, timedelta] = DEFAULT_TTL_SECONDS,
-    db_path: Path = DEFAULT_DB_PATH,
+    db_path: Optional[Path] = None,
 ) -> Optional[dict[str, Any]]:
     """Return cached payload dict if fresh (within ttl_seconds), else None."""
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
     ttl = ttl_seconds if isinstance(ttl_seconds, timedelta) else timedelta(seconds=ttl_seconds)
     init_db(db_path)
     with _connect(db_path) as conn:
@@ -72,9 +76,11 @@ def set(  # noqa: A001 - public API name
     source: str,
     query: str,
     payload: dict[str, Any],
-    db_path: Path = DEFAULT_DB_PATH,
+    db_path: Optional[Path] = None,
 ) -> None:
     """Write payload to cache, replacing existing row for (source, query)."""
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
     init_db(db_path)
     fetched_at = payload.get("fetched_at") or datetime.now(timezone.utc).isoformat()
     with _connect(db_path) as conn:
