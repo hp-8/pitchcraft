@@ -1,0 +1,45 @@
+{
+  "vertical": "restaurant",
+  "style": "modern",
+  "items": [
+    {
+      "id": "arena_1",
+      "title": "Warm pasta bar",
+      "url": "https://www.are.na/block/1",
+      "image_url": "tests/fixtures/swatch.png",
+      "source": "arena",
+      "tags": ["restaurant", "warm"],
+      "libs_detected": [],
+      "has_animation": false,
+      "preview_mp4_path": null,
+      "components_tsx_path": null,
+      "score": 0.9
+    },
+    {
+      "id": "awwwards_2",
+      "title": "Kinetic typographic landing",
+      "url": "https://awwwards.com/site/2",
+      "image_url": null,
+      "source": "awwwards",
+      "tags": ["kinetic", "hero"],
+      "libs_detected": ["gsap", "Lenis"],
+      "has_animation": true,
+      "preview_mp4_path": "data/cache/refs/awwwards/2/preview.mp4",
+      "components_tsx_path": null,
+      "score": 0.8
+    },
+    {
+      "id": "codrops_3",
+      "title": "Marquee hover card",
+      "url": "https://tympanus.net/codrops/3",
+      "image_url": null,
+      "source": "codrops",
+      "tags": ["marquee", "hover"],
+      "libs_detected": ["motion"],
+      "has_animation": true,
+      "preview_mp4_path": null,
+      "components_tsx_path": "data/cache/refs/codrops/3/components.tsx",
+      "score": 0.7
+    }
+  ]
+}
