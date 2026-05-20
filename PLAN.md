@@ -10,15 +10,42 @@ Mass-generate high-quality 4-page websites (Landing + Services + About + Contact
 - Solo operator (Harsh)
 
 ## Stack
-- **Scraping/audit:** Scrapling (Python), Firecrawl (1000 credits), PageSpeed Insights API
-- **Design refs:** Are.na API, Codrops, Awwwards, Cosmos, Pinterest (via Scrapling)
+- **Scraping/audit:** Scrapling (Python), Playwright (video capture + animation detection), Firecrawl (1000 credits), PageSpeed Insights API
+- **Design refs:** Are.na API, Codrops, Awwwards, Cosmos, Pinterest, 21st.dev, react-bits, GSAP showcase, react-three-fiber examples, Motion examples
 - **UI generation:** Stitch MCP
-- **Prototype build:** Next.js + Tailwind + shadcn + Framer Motion
+- **Prototype build:** Next.js + Tailwind + shadcn + Framer Motion + GSAP + Lenis (smooth scroll) + Splitting.js + lottie-react + react-three-fiber (where relevant)
 - **Copy/proposal:** Gemini Flash (free tier)
-- **Hosting:** Vercel free tier (subdomains per client)
+- **Hosting:** Vercel free tier (one project per client → `<biz>.vercel.app`)
 - **Email:** Gmail SMTP
 - **Tracking:** Google Sheets (single source of truth)
 - **Payments:** Wise / PayPal / bank wire
+
+## Design Quality Bar (non-negotiable per prototype)
+Every prototype must hit:
+- Smooth scroll (Lenis)
+- Animated hero (kinetic typography via Splitting.js or Framer staggered words + parallax/video bg)
+- Scroll-triggered reveals on every section (Framer `whileInView` or GSAP ScrollTrigger)
+- Page transitions (Framer `AnimatePresence` between routes)
+- Hover micro-interactions (magnetic buttons, image hover effects)
+- At least 1 marquee/ticker (logos, reviews, services)
+- Image lazy reveal (mask-clip or blur-up)
+- Modern typography (variable font, large display weights)
+- Depth (gradient mesh, noise texture, or 3D element via r3f where it fits)
+- Intro loader (brief page-load curtain)
+
+Templates ship with these slots pre-wired. Stitch generates layout/copy; animation components are hand-built primitives, never LLM-authored.
+
+## Animation Capture (during scraping)
+For motion-rich sources (Awwwards, Cosmos, GSAP showcase, r3f examples):
+- Playwright records 10s scroll-through video → MP4
+- Injects JS to detect window globals (`gsap`, `Lenis`, `THREE`, `motion`, `lottie`)
+- Sniffs `<script src>` for known animation libs
+- Extracts `@keyframes` from stylesheets
+
+For code-source sites (21st.dev, react-bits, Codrops GitHub):
+- Scrape component TSX/JSX source directly
+
+Per ref artifact layout: `data/cache/refs/<source>/<slug>/{preview.mp4, thumbnail.jpg, source.html, styles.css, components.tsx, meta.json}`.
 
 ## Agents
 1. **site-audit-agent** — scrapes client site, runs PageSpeed, applies heuristics, outputs problems + $ impact
@@ -42,7 +69,18 @@ Mass-generate high-quality 4-page websites (Landing + Services + About + Contact
 
 ## Phases
 - **Phase 0** — Environment + accounts + API keys (manual, Harsh)
-- **Phase 1** — Reference scrapers (Are.na → Codrops → Awwwards → Cosmos → Pinterest)
+- **Phase 1** — Reference scrapers + animation capture
+  - 1.1 Are.na (API, static)
+  - 1.2 Shared Playwright capture utility (video record + lib detection + style extraction)
+  - 1.3 Codrops (HTML + GitHub source)
+  - 1.4 Awwwards (capture util)
+  - 1.5 Cosmos (capture util)
+  - 1.6 Pinterest (Scrapling static)
+  - 1.7 21st.dev (component source)
+  - 1.8 react-bits (GitHub raw)
+  - 1.9 GSAP showcase (capture util)
+  - 1.10 react-three-fiber examples (codesandbox embed scrape)
+  - 1.11 Unified CLI + dedup + ranking
 - **Phase 2** — Audit engine (Firecrawl + PageSpeed + heuristics + $ translator)
 - **Phase 3** — Design moodboard → DESIGN.md → Stitch design system
 - **Phase 4** — Stitch screen generation (4 pages × 3 variants per lead)
