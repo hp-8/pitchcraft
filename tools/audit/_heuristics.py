@@ -89,10 +89,13 @@ def _no_phone(markdown: str) -> Problem | None:
 def _no_address(markdown: str) -> Problem | None:
     if _has(ADDRESS_PATTERN, markdown):
         return None
+    zip_hit = re.search(r"\b\d{5}(-\d{4})?\b", markdown or "")
+    if zip_hit:
+        return None
     return Problem(
         code="no_address",
-        severity="medium",
-        message="No street address visible (number + street keyword).",
+        severity="low",
+        message="No street address visible (number + street keyword + zip).",
     )
 
 
@@ -188,6 +191,52 @@ def _vertical_checks(markdown: str, html: str, vertical: str) -> list[Problem]:
         if not re.search(r"order\s*(online|now)|doordash|ubereats|grubhub", blob):
             out.append(Problem(code="no_order_online", severity="critical",
                                message="No online ordering option."))
+    return out
+
+
+def run_pagespeed_heuristics(pagespeed: dict | None) -> list[Problem]:
+    """Translate PageSpeed metrics into Problem entries."""
+    if not pagespeed or pagespeed.get("error"):
+        return []
+    out: list[Problem] = []
+    lcp = pagespeed.get("lcp_ms")
+    tbt = pagespeed.get("tbt_ms")
+    inp = pagespeed.get("inp_ms")
+    cls = pagespeed.get("cls")
+    perf = pagespeed.get("performance_score")
+
+    if isinstance(lcp, int):
+        if lcp > 4000:
+            out.append(Problem(code="slow_lcp", severity="critical",
+                               message=f"LCP {lcp}ms (poor; Google threshold 2500ms).",
+                               evidence=f"{lcp}ms"))
+        elif lcp > 2500:
+            out.append(Problem(code="slow_lcp", severity="high",
+                               message=f"LCP {lcp}ms (needs improvement; <2500ms is good).",
+                               evidence=f"{lcp}ms"))
+    if isinstance(tbt, int) and tbt > 300:
+        sev = "high" if tbt > 600 else "medium"
+        out.append(Problem(code="slow_tbt", severity=sev,
+                           message=f"Total Blocking Time {tbt}ms (>300ms hurts interactivity).",
+                           evidence=f"{tbt}ms"))
+    if isinstance(inp, int) and inp > 200:
+        sev = "high" if inp > 500 else "medium"
+        out.append(Problem(code="slow_inp", severity=sev,
+                           message=f"INP {inp}ms (>200ms feels laggy).",
+                           evidence=f"{inp}ms"))
+    if isinstance(cls, (int, float)) and cls > 0.1:
+        out.append(Problem(code="layout_shift", severity="medium",
+                           message=f"CLS {cls:.3f} (>0.1 causes visible jumpiness).",
+                           evidence=f"{cls:.3f}"))
+    if isinstance(perf, (int, float)):
+        if perf < 0.5:
+            out.append(Problem(code="low_perf_score", severity="critical",
+                               message=f"PageSpeed performance score {perf:.2f} (poor).",
+                               evidence=f"{perf:.2f}"))
+        elif perf < 0.7:
+            out.append(Problem(code="low_perf_score", severity="high",
+                               message=f"PageSpeed performance score {perf:.2f} (subpar; <0.7).",
+                               evidence=f"{perf:.2f}"))
     return out
 
 

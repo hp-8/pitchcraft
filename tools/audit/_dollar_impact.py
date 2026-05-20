@@ -42,7 +42,11 @@ _SEV_MULT: dict[str, float] = {
 }
 
 # Codes that don't directly block conversion (omit from $ math).
-_SKIP_CODES = {"no_schema_org", "no_h1", "dated_design_signals", "no_social_proof"}
+# slow_lcp / low_perf_score handled via _slow_load_item to avoid double-counting.
+_SKIP_CODES = {
+    "no_schema_org", "no_h1", "dated_design_signals", "no_social_proof",
+    "slow_lcp", "slow_tbt", "slow_inp", "layout_shift", "low_perf_score",
+}
 
 
 def _baseline(vertical: str) -> tuple[int, int]:
@@ -65,16 +69,15 @@ def _problem_to_item(p: Problem, vertical: str) -> DollarImpactItem | None:
     )
 
 
-def _slow_load_item(vertical: str, lcp_ms: int) -> DollarImpactItem:
+def _slow_load_item(vertical: str, lcp_ms: int, mult: float = 0.3) -> DollarImpactItem:
     low, high = _baseline(vertical)
-    # ~30% extra bounce on slow LCP per Google web.dev guidance.
-    mult = 0.3
+    label = f"LCP {lcp_ms}ms" if lcp_ms else "subpar PageSpeed perf score"
     return DollarImpactItem(
         code="slow_load",
         low=int(round(low * mult)),
         high=int(round(high * mult)),
         rationale=(
-            f"LCP {lcp_ms}ms > 4000ms; ~30% mobile bounce uplift on {vertical} "
+            f"{label}; bounce uplift ~{int(mult*100)}% on {vertical} "
             f"baseline ${low}-${high}/mo."
         ),
     )
@@ -94,8 +97,15 @@ def estimate_dollar_impact(
 
     if pagespeed and not pagespeed.get("error"):
         lcp = pagespeed.get("lcp_ms")
+        perf = pagespeed.get("performance_score")
+        # Tiered slow-load impact: poor (>4000ms) heavier than needs-improvement (>2500ms).
         if isinstance(lcp, int) and lcp > 4000:
-            breakdown.append(_slow_load_item(vertical, lcp))
+            breakdown.append(_slow_load_item(vertical, lcp, mult=0.4))
+        elif isinstance(lcp, int) and lcp > 2500:
+            breakdown.append(_slow_load_item(vertical, lcp, mult=0.2))
+        elif isinstance(perf, (int, float)) and perf < 0.7:
+            # No LCP signal but perf score subpar — still bleed.
+            breakdown.append(_slow_load_item(vertical, lcp or 0, mult=0.15))
 
     total_low = sum(it.low for it in breakdown)
     total_high = sum(it.high for it in breakdown)

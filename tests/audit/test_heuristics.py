@@ -1,7 +1,7 @@
 """Tests for tools.audit._heuristics."""
 from __future__ import annotations
 
-from tools.audit._heuristics import run_heuristics
+from tools.audit._heuristics import run_heuristics, run_pagespeed_heuristics
 
 GOOD_HTML = """
 <!doctype html>
@@ -91,3 +91,23 @@ def test_cta_fallback_for_vertical():
     html = "<h1>x</h1>"
     probs = run_heuristics(md, html, "restaurant", url="https://x.com")
     assert "weak_cta" not in _codes(probs)
+
+
+def test_pagespeed_heuristics_flags_slow_lcp_and_perf():
+    ps = {"lcp_ms": 3401, "tbt_ms": 780, "inp_ms": 236, "cls": 0.035, "performance_score": 0.63}
+    codes = _codes(run_pagespeed_heuristics(ps))
+    assert "slow_lcp" in codes
+    assert "slow_tbt" in codes
+    assert "slow_inp" in codes
+    assert "low_perf_score" in codes
+    assert "layout_shift" not in codes  # 0.035 < 0.1
+
+
+def test_pagespeed_heuristics_clean_when_good():
+    ps = {"lcp_ms": 1800, "tbt_ms": 100, "inp_ms": 120, "cls": 0.05, "performance_score": 0.95}
+    assert run_pagespeed_heuristics(ps) == []
+
+
+def test_pagespeed_heuristics_handles_none_and_error():
+    assert run_pagespeed_heuristics(None) == []
+    assert run_pagespeed_heuristics({"error": "boom"}) == []

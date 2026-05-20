@@ -16,7 +16,7 @@ import typer
 
 from tools.audit._dollar_impact import estimate_dollar_impact
 from tools.audit._firecrawl import fetch_firecrawl
-from tools.audit._heuristics import run_heuristics
+from tools.audit._heuristics import run_heuristics, run_pagespeed_heuristics
 from tools.audit._models import AuditResult, PageSpeedSummary
 from tools.audit._pagespeed import fetch_pagespeed
 from tools.audit._slug import url_to_slug
@@ -66,6 +66,7 @@ def audit(
         )
 
     problems = run_heuristics(markdown, html, vertical, url=url)
+    problems.extend(run_pagespeed_heuristics(ps_raw if not pagespeed_error else None))
     dollar_impact = estimate_dollar_impact(problems, ps_raw, vertical)
 
     result = AuditResult(
