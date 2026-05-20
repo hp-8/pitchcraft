@@ -5,8 +5,9 @@ description = "Mass-generate high-quality websites + cold outreach for US local 
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Harsh" }]
+license = { text = "UNLICENSED" }
 dependencies = [
-    "scrapling[fetchers]>=0.2.9",
+    "scrapling[fetchers]>=0.2.9,<0.3",
     "playwright>=1.47.0",
     "requests>=2.32.0",
     "google-api-python-client>=2.140.0",
@@ -19,13 +20,6 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "pydantic>=2.8.2",
     "typer>=0.12.5",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.3.2",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.6.3",
 ]
 
 [tool.uv]
@@ -42,6 +36,3 @@ target-version = "py311"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["agents", "tools", "pipeline"]
