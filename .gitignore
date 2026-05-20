@@ -1,0 +1,52 @@
+# Secrets / env
+.env
+.env.local
+.env.*.local
+secrets/*
+!secrets/.gitkeep
+!secrets/README.md
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.uv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Data (track folder, ignore contents)
+data/leads/*
+!data/leads/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
+
+# Vercel
+.vercel/
+
+# OS / logs
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp

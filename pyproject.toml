@@ -1,0 +1,47 @@
+[project]
+name = "website-generator"
+version = "0.1.0"
+description = "Mass-generate high-quality websites + cold outreach for US local service businesses."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Harsh" }]
+dependencies = [
+    "scrapling[fetchers]>=0.2.9",
+    "playwright>=1.47.0",
+    "requests>=2.32.0",
+    "google-api-python-client>=2.140.0",
+    "google-auth>=2.34.0",
+    "google-auth-oauthlib>=1.2.1",
+    "gspread>=6.1.2",
+    "firecrawl-py>=1.6.0",
+    "google-generativeai>=0.8.0",
+    "weasyprint>=62.3",
+    "python-dotenv>=1.0.1",
+    "pydantic>=2.8.2",
+    "typer>=0.12.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.2",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.3",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.2",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.6.3",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents", "tools", "pipeline"]
