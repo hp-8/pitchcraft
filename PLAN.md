@@ -85,7 +85,11 @@ Per ref artifact layout: `data/cache/refs/<source>/<slug>/{preview.mp4, thumbnai
 - **Phase 3** — Design moodboard → DESIGN.md → Stitch design system
 - **Phase 4** — Stitch screen generation (4 pages × 3 variants per lead)
 - **Phase 5** — Approval gate (simple local web UI to view + approve)
-- **Phase 6** — Prototype builder (Stitch design → Next.js page + copy fill + Vercel deploy)
+- **Phase 6** — Prototype builder (hybrid council architecture)
+  - 6a Design council (Python): fuses brand + audit + moodboard + Hallmark + audit-UX + animation picks → `design_brief.md` (Hallmark-compatible)
+  - 6b Stitch generation: consumes brief → baseline HTML (existing Phase 4 envelope flow)
+  - 6c Polisher: Hallmark slop-test gates + premium CSS + auto-tag for animation primitives + Lenis/GSAP/Splitting wiring + mobile fix-up + honest-copy check → production HTML
+  - 6d Vercel deploy (existing static multi-page deploy)
 - **Phase 7** — Email agent + Gmail SMTP send queue (35/day, scheduled spacing)
 - **Phase 8** — Tracking layer (Sheets API, status updates per phase, open/click pixels)
 - **Phase 9** — Reply handling + proposal-agent + PDF generation
