@@ -2,6 +2,14 @@
 
 > Pipeline that turns a CSV of local businesses into deployed prototype websites, audit PDFs, and growth proposals, ready to send.
 
+<p align="center">
+  <a href="docs/intro.mp4">
+    <img src="docs/intro.gif" alt="Pitchcraft intro" width="720">
+  </a>
+  <br/>
+  <em><a href="docs/intro.mp4">Watch the 12 second intro (MP4)</a></em>
+</p>
+
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
