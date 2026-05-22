@@ -126,3 +126,56 @@ Do NOT abort the whole batch on a single failure. Instead:
 - Final `stitch_status` is `"ready"` if all 12 succeeded, otherwise `"partial"`.
 
 This keeps the approval gate (Phase 5) usable on whatever variants did render.
+
+## Phase 6b — fulfillment loop (Claude Code session)
+
+`tools/stitch/fulfiller.py` is the pure-Python state machine. The Claude
+Code orchestrator session is the *driver*: it picks pending screens, calls
+the Stitch MCP tools, then hands results back to the CLI which persists
+them.
+
+### Loop pseudocode (run inside Claude Code)
+
+```text
+for envelope in stitch pending --out-dir data/outputs (JSONL):
+    payload = mcp__stitch__generate_screen_from_text(**screen.args)
+    try:
+        html = mcp__stitch__get_screen(screen_instance_id=payload.id).html
+    except Exception as e:
+        stitch fulfill-error --envelope <env> --idx <i> --error "<repr>"
+        continue
+    write payload -> /tmp/result.json
+    write html    -> /tmp/out.html
+    stitch fulfill --envelope <env> --idx <i> \
+        --result-file /tmp/result.json --html-file /tmp/out.html
+
+for envelope in (envelopes touched):
+    stitch finalize --envelope <env>
+```
+
+### CLI verbs
+
+| Verb | Purpose |
+| ---- | ------- |
+| `stitch pending`       | Emit JSONL of every unfulfilled screen (envelope, idx, tool, args, target_path). |
+| `stitch fulfill`       | Persist Stitch result (`--result-file` JSON) + optional `--html-file` next to target. Flips `fulfilled=true`. |
+| `stitch fulfill-error` | Mark screen fulfilled with `error` field (no target written). |
+| `stitch finalize`      | Stamp `status` (`queued|partial|ready`) onto envelope; orchestrator should also push to sheet. |
+
+### Idempotency & resumability
+
+`fulfill` re-writes `target_path` and toggles the flag in place. Re-running
+a partially-completed loop only dispatches MCP calls for screens still
+`fulfilled=false`, so a crash mid-batch is safe to restart.
+
+### Sheet integration
+
+The Python state machine does not touch sheets directly (CLI is dumb so
+tests stay isolated). The orchestrator session should:
+
+1. After `finalize` returns `"ready"` or `"partial"`, call
+   `SheetsClient.upsert_lead(lead_id, {"stitch_status": ..., "stitch_variants_url": <env path>})`
+   and `update_status(lead_id, "stitch", status, note="fulfilled N/12")`.
+
+   Or, call `fulfiller.finalize_envelope(env_path, sheets_client=client)`
+   from within the Python session — same effect.

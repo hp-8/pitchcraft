@@ -1,11 +1,30 @@
 [project]
 name = "website-generator"
 version = "0.1.0"
-description = "Mass-generate high-quality websites + cold outreach for US local service businesses."
+description = "Mass produce prototype websites, audit PDFs, and growth proposals for local service businesses."
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Harsh" }]
-license = { text = "UNLICENSED" }
+authors = [{ name = "Harsh Patadia", email = "hello@harshpatadia.space" }]
+license = { text = "MIT" }
+keywords = ["website-generator", "agency-automation", "audit", "lead-generation", "marketing-automation", "llm-fallback"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+    "Topic :: Software Development :: Code Generators",
+]
+
+[project.urls]
+Homepage = "https://github.com/hp-8/website-generator"
+Repository = "https://github.com/hp-8/website-generator"
+Issues = "https://github.com/hp-8/website-generator/issues"
+Author = "https://www.harshpatadia.space/"
+
 dependencies = [
     "scrapling[fetchers]>=0.2.9,<0.3",
     "playwright>=1.47.0",
@@ -24,6 +43,11 @@ dependencies = [
     "numpy>=1.26",
     "beautifulsoup4>=4.12",
 ]
+
+[project.optional-dependencies]
+openai = ["openai>=1.40.0"]
+anthropic = ["anthropic>=0.34.0"]
+groq = ["groq>=0.11.0"]
 
 [tool.uv]
 dev-dependencies = [

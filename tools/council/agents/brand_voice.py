@@ -15,7 +15,7 @@ from tools.stitch._models import LeadContext
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODEL = "gemini-2.0-flash-exp"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 # Hallmark tone vocabulary (mirrors hallmark voice register).
 TONES = {"editorial", "brutalist", "soft", "utilitarian", "luxury", "playful", "technical", "austere"}
@@ -95,13 +95,7 @@ Respond with JSON only.
 
 
 def _call_gemini(lead: LeadContext, audit: AuditResult | None) -> dict[str, Any]:
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY missing")
-    import google.generativeai as genai  # type: ignore[import-untyped]
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL)
+    from tools.llm import LLMUnavailable, call_llm_json
     prompt = _PROMPT.format(
         business=lead.business,
         vertical=lead.vertical,
@@ -109,17 +103,10 @@ def _call_gemini(lead: LeadContext, audit: AuditResult | None) -> dict[str, Any]
         services=", ".join(lead.services) or "(unspecified)",
         problems=", ".join(p.code for p in (audit.problems if audit else [])) or "(none)",
     )
-    resp = model.generate_content(prompt)
-    text = (resp.text or "").strip()
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.lower().startswith("json"):
-            text = text[4:].strip()
-        text = text.strip("`").strip()
-    data = json.loads(text)
-    if not isinstance(data, dict):
-        raise RuntimeError("Gemini returned non-object JSON")
-    return data
+    try:
+        return call_llm_json(prompt)
+    except LLMUnavailable as exc:
+        raise RuntimeError(str(exc)) from exc
 
 
 def synthesize_brand_voice(

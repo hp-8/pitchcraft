@@ -20,13 +20,17 @@ import typer
 from tools.scrapers import (
     arena,
     awwwards,
+    behance_rss,
     codrops,
     cosmos,
+    dribbble_rss,
     gsap_showcase,
+    pexels,
     pinterest,
     r3f_examples,
     react_bits,
     twentyfirst,
+    unsplash,
 )
 from tools.scrapers._models import ScraperItem, ScraperResult
 
@@ -42,20 +46,114 @@ SOURCES: Dict[str, Callable[..., ScraperResult]] = {
     "react-bits": react_bits.fetch_react_bits,
     "gsap-showcase": gsap_showcase.fetch_gsap_showcase,
     "r3f-examples": r3f_examples.fetch_r3f_examples,
+    "unsplash": unsplash.fetch_unsplash,
+    "pexels": pexels.fetch_pexels,
+    "behance": behance_rss.fetch_behance,
+    "dribbble": dribbble_rss.fetch_dribbble,
+}
+
+# Per-vertical seed terms. Drives query generation + tuning per vertical.
+VERTICAL_SEEDS: dict[str, list[str]] = {
+    "fnb": ["wine", "winery", "vineyard", "cellar", "bottle photography", "hospitality"],
+    "restaurant": ["restaurant menu", "fine dining", "hospitality brand", "bistro", "chef"],
+    "dental": ["dental clinic", "healthcare brand", "medical UI", "wellness studio"],
+    "realtor": ["luxury real estate", "architecture", "property brochure", "interior"],
+}
+
+# Per-vertical source weights. 0 = exclude. >1 = boost (fetch wider).
+# Demote r3f for non-3D verticals (cosmic palette derails wine/restaurant brands).
+SOURCE_WEIGHTS: dict[str, dict[str, float]] = {
+    "fnb": {
+        "arena": 1.0, "codrops": 0.5, "behance": 0.0, "dribbble": 0.0,
+        "unsplash": 1.5, "pexels": 1.0,
+        "r3f-examples": 0.0, "gsap-showcase": 0.3,
+        "awwwards": 0.5, "cosmos": 0.5, "pinterest": 0.5,
+        "twentyfirst": 0.3, "react-bits": 0.3,
+    },
+    "restaurant": {
+        "arena": 1.0, "codrops": 0.5, "behance": 0.0, "dribbble": 0.0,
+        "unsplash": 1.5, "pexels": 1.0,
+        "r3f-examples": 0.0, "gsap-showcase": 0.3,
+        "awwwards": 0.5, "cosmos": 0.5, "pinterest": 0.8,
+        "twentyfirst": 0.3, "react-bits": 0.3,
+    },
+    "dental": {
+        "arena": 0.7, "codrops": 0.3, "behance": 0.0, "dribbble": 0.0,
+        "unsplash": 1.5, "pexels": 1.0,
+        "r3f-examples": 0.0, "gsap-showcase": 0.3,
+        "awwwards": 0.5, "cosmos": 0.5, "pinterest": 0.8,
+        "twentyfirst": 0.5, "react-bits": 0.5,
+    },
+    "realtor": {
+        "arena": 1.0, "codrops": 0.3, "behance": 0.0, "dribbble": 0.0,
+        "unsplash": 1.5, "pexels": 1.0,
+        "r3f-examples": 0.0, "gsap-showcase": 0.3,
+        "awwwards": 0.5, "cosmos": 0.5, "pinterest": 0.8,
+        "twentyfirst": 0.3, "react-bits": 0.3,
+    },
 }
 
 
-def build_queries(vertical: str, style: str) -> list[str]:
-    """Generate 3-5 query variants for a vertical+style combo."""
-    v = vertical.strip()
+def _weight_for(vertical: str, source: str) -> float:
+    return SOURCE_WEIGHTS.get(vertical, {}).get(source, 1.0)
+
+
+def build_queries(
+    vertical: str,
+    style: str,
+    keywords_path: str | None = None,
+) -> list[str]:
+    """Per-vertical seed terms + style modifier.
+
+    If `keywords_path` is provided and the file exists, prefer NLP-extracted
+    keywords (with style prefix). Falls back to static `VERTICAL_SEEDS`.
+    """
+    v = vertical.strip().lower()
     s = (style or "modern").strip()
-    return [
-        f"{s} {v} landing page",
-        f"{v} hero animation",
-        f"{s} {v} website",
-        f"{v} interactive design",
-        f"{s} {v} brand site",
-    ]
+
+    nlp_keywords: list[str] = []
+    if keywords_path:
+        try:
+            import json as _json
+            kpath = __import__("pathlib").Path(keywords_path)
+            if kpath.exists():
+                data = _json.loads(kpath.read_text(encoding="utf-8"))
+                nlp_keywords = [
+                    k.strip().lower()
+                    for k in (data.get("keywords") or [])
+                    if isinstance(k, str) and k.strip()
+                ]
+                bucket_extra = [
+                    t.strip().lower()
+                    for t in (data.get("bucket_tokens") or [])
+                    if isinstance(t, str) and t.strip()
+                ]
+                # Promote bucket tokens to the front
+                nlp_keywords = bucket_extra + nlp_keywords
+        except Exception as exc:  # noqa: BLE001
+            log.warning("keywords.json load failed: %s — falling back to seeds", exc)
+
+    seeds: list[str]
+    if nlp_keywords:
+        seeds = nlp_keywords
+    else:
+        seeds = VERTICAL_SEEDS.get(v) or [v]
+
+    queries: list[str] = []
+    for seed in seeds[:8]:
+        queries.append(f"{s} {seed}")
+        queries.append(f"{seed} brand")
+    queries.append(f"{s} {v} website")
+    # Dedupe preserving order
+    seen: set[str] = set()
+    out: list[str] = []
+    for q in queries:
+        ql = q.lower().strip()
+        if not ql or ql in seen:
+            continue
+        seen.add(ql)
+        out.append(q)
+    return out
 
 
 def _dedupe_key(item: ScraperItem) -> tuple[str, str]:
@@ -76,18 +174,31 @@ def run(
     include_motion: bool = False,
     use_cache: bool = True,
     source_only: str | None = None,
+    keywords_path: str | None = None,
 ) -> dict:
-    """Programmatic entry point; returns the final combined payload dict."""
-    queries = build_queries(vertical, style)
-    sources = {source_only: SOURCES[source_only]} if source_only else SOURCES
+    """Programmatic entry point; returns the final combined payload dict.
+
+    Per-vertical source weights govern whether a source runs and how wide:
+    - weight 0 → source skipped entirely (e.g. r3f for non-3D verticals)
+    - weight >=1 → fetches at least 1 query; ~max(1, weight*queries_count)
+    """
+    queries = build_queries(vertical, style, keywords_path=keywords_path)
+    sources = {source_only: SOURCES[source_only]} if source_only else dict(SOURCES)
 
     all_items: list[ScraperItem] = []
     by_source: dict[str, int] = {name: 0 for name in sources}
 
     for name, fn in sources.items():
-        for q in queries:
+        w = _weight_for(vertical, name) if not source_only else 1.0
+        if w <= 0:
+            continue
+        # Scale how many query variants this source consumes.
+        per_source_queries = queries if w >= 1.0 else queries[:max(1, int(len(queries) * w))]
+        # Per-query item cap scales with weight (mild boost for heavy weights)
+        per_query_limit = max(8, int(limit * min(w, 1.5)))
+        for q in per_source_queries:
             try:
-                result = fn(query=q, limit=limit, use_cache=use_cache)
+                result = fn(query=q, limit=per_query_limit, use_cache=use_cache)
             except Exception as exc:  # noqa: BLE001
                 log.warning("scraper %s failed for q=%r: %s", name, q, exc)
                 continue

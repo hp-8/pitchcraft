@@ -1,15 +1,13 @@
-"""Gemini wrapper — single shot synthesis of brand mood, typography, etc."""
+"""LLM wrapper for brand mood / typography synthesis. Uses tools.llm fallback chain."""
 from __future__ import annotations
 
-import json
-import os
 from typing import Any, Dict
 
-GEMINI_MODEL = "gemini-2.0-flash-exp"
+from tools.llm import LLMUnavailable, call_llm_json
 
 
 class LLMError(RuntimeError):
-    """Raised when the LLM call fails or returns unparseable output."""
+    """Raised when every provider in the fallback chain fails."""
 
 
 _PROMPT = """You are a senior brand designer. Given the inputs below, return ONE JSON object — no prose, no markdown fences.
@@ -50,41 +48,12 @@ def _build_prompt(payload: Dict[str, Any]) -> str:
 
 
 def synthesize_design_notes(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Call Gemini and return parsed JSON dict.
+    """Run design synthesis through the LLM fallback chain.
 
-    Raises LLMError on missing key, network failure, or unparseable response.
+    Raises LLMError when every provider fails (and manual is disabled).
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise LLMError("GEMINI_API_KEY missing. Set in .env or pass --skip-llm.")
-
-    try:
-        import google.generativeai as genai
-    except ImportError as exc:  # pragma: no cover - import guarded
-        raise LLMError(f"google-generativeai not installed: {exc}") from exc
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(GEMINI_MODEL)
     prompt = _build_prompt(payload)
-
     try:
-        resp = model.generate_content(prompt)
-        text = (resp.text or "").strip()
-    except Exception as exc:
-        raise LLMError(f"Gemini request failed: {exc}") from exc
-
-    # Strip accidental markdown fences if the model added them.
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.lower().startswith("json"):
-            text = text[4:].strip()
-        text = text.strip("`").strip()
-
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise LLMError(f"Gemini returned non-JSON: {text[:200]}") from exc
-
-    if not isinstance(data, dict):
-        raise LLMError("Gemini JSON was not an object.")
-    return data
+        return call_llm_json(prompt)
+    except LLMUnavailable as exc:
+        raise LLMError(str(exc)) from exc

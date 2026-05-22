@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING
 
 from tools.polisher._animation_wire import CDN_LIBS, build_prototype_js, inject_cdn
 from tools.polisher._autotag import autotag
+from tools.polisher._hero_video import apply_hero_video
 from tools.polisher._brief_parser import parse_brief
 from tools.polisher._honest_copy import scan as honest_scan
 from tools.polisher._html import parse, render
 from tools.polisher._mobile_fix import apply_mobile_fixes
 from tools.polisher._models import PageReport, PolishResult
+from tools.polisher._perf import apply_perf
 from tools.polisher._premium_css import build_css, inject_premium_css
 from tools.polisher._slop_gates import check_gates
 
@@ -39,12 +41,16 @@ def _load_approved(path: Path) -> dict[str, int]:
     return {str(k): int(v) for k, v in approved.items() if v is not None}
 
 
-def _polish_page(page: str, source_path: Path, brief, out_path: Path) -> PageReport:
+def _polish_page(page: str, source_path: Path, brief, out_path: Path, business: str = "", lead_id: str = "", vertical: str = "") -> PageReport:
     raw = source_path.read_text(encoding="utf-8")
     soup = parse(raw)
     counts = autotag(soup)
     inject_premium_css(soup, brief)
-    inject_cdn(soup)
+    inject_cdn(soup, brand=business or brief.business or "")
+    # Hero video swap + per-lead vibe theme — landing only
+    if page == "landing":
+        apply_hero_video(soup, lead_id=lead_id, vertical=vertical)
+    apply_perf(soup)
     mobile_fixes = apply_mobile_fixes(soup)
     honesty = honest_scan(soup)
     gates = check_gates(soup)
@@ -69,6 +75,8 @@ def polish_prototype(
     approved_path: str | Path | None = None,
     out_dir: str | Path | None = None,
     sheets_client: "SheetsClient | None" = None,
+    business: str = "",
+    vertical: str = "",
 ) -> PolishResult:
     """Polish all 4 pages → production HTML in `<out_dir>` (default <lead_dir>/site)."""
     lead_dir_p = Path(lead_dir)
@@ -100,7 +108,7 @@ def polish_prototype(
             continue
         target = out_dir_p / _PAGE_FILENAMES[page]
         try:
-            report = _polish_page(page, src, brief, target)
+            report = _polish_page(page, src, brief, target, business=business or brief.business or "", lead_id=lead_id, vertical=vertical)
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{page}: {exc}")
             logger.exception("polish failed for %s", page)

@@ -87,15 +87,20 @@ Expected: 12 screen URLs returned, stored in Sheet `stitch_variants_url`.
 
 ---
 
-## Phase 5 — Approval Gate
-**Deliverables:** Local web UI (`scripts/approval-server.py` or simple Next.js route) showing variants side-by-side, click to approve.
+## Phase 5 — Approval Gate ✅
+**Deliverables:** `tools/approval/app.py` — Flask app w/ inline templates. Lists leads with stitch envelopes, per-lead grid (4 pages × N variants) embedded via iframe srcdoc, click button per page → writes `approved.json`.
 
 **Verify:**
 ```bash
-uv run python scripts/approval-server.py
-# open localhost:8000/leads/<id>
+python -m tools.approval --port 8765 --out-dir data/outputs
+# open http://127.0.0.1:8765/
 ```
-Expected: see 12 thumbnails grouped by page, click variant → marks approved in Sheet.
+Expected: lead list, click "Review variants →" per lead, see 4 page blocks with variant cards. Each "Approve" button writes `{"approved": {"landing": 0, ...}}` to `data/outputs/<slug>/approved.json`. "Finalize approval & continue" returns to index.
+
+**After approval, resume polish + deploy:**
+```bash
+python -m tools.orchestrator resume --leads data/leads/test_batch.csv --no-sheet
+```
 
 ---
 
@@ -115,26 +120,27 @@ Expected:
 
 ---
 
-## Phase 7 — Email Agent + Send Queue
-**Deliverables:** `agents/email/agent.py` + `tools/gmail/sender.py` + queue runner.
+## Phase 7 — Email Agent + Send Queue ✅
+**Deliverables:** `tools/email/{template, llm, gmail_send, agent, cli}.py`. Hybrid: deterministic template w/ audit-driven swap blocks + optional per-lead Gemini Flash polish + Gmail SMTP send.
 
-**Verify draft:**
+**Verify preview (no send):**
 ```bash
-uv run python -m agents.email --lead-id <id> --dry-run
+python -m tools.email preview --lead-id trayvino --leads data/leads/test_batch.csv --lead-dir data/outputs/trayvinowines-com --preview-url https://trayvino-wines.vercel.app
+python -m tools.email preview ... --no-llm   # skip LLM polish
 ```
-Expected: subject + body printed, no send.
+Expected: `{subject, body, polished_by_llm}` printed.
 
-**Verify send (to yourself first):**
+**Verify send (to yourself first; needs `GMAIL_USER` + `GMAIL_APP_PASSWORD` in .env):**
 ```bash
-uv run python -m tools.gmail.sender --to hpatadi07@gmail.com --subject test --body "test"
+python -m tools.email send-one --lead-id <id> --leads <csv> --lead-dir <dir> --preview-url <url>
 ```
 Expected: email in inbox within 30s.
 
-**Queue runner:**
+**Batch:**
 ```bash
-uv run python -m pipeline.send-queue --max 5 --start-hour 9 --end-hour 17
+python -m tools.email send-batch --leads <csv> --cap 35 --spacing 900
 ```
-Expected: 5 emails sent, spaced ~15min, Sheet `email_sent_at` updated.
+Expected: up to 35 emails sent, spaced 15min apart, can opt-out of LLM with `--no-llm`.
 
 ---
 
@@ -151,31 +157,61 @@ Expected: writes test row, reads back, deletes.
 
 ---
 
-## Phase 9 — Reply Handling + Proposal Agent
-**Deliverables:** `agents/proposal/agent.py` → PDF via weasyprint. Reply detection (Gmail polling or IMAP).
+## Phase 9 — Proposal + Audit PDFs ✅ / Reply Detection ⏳
+**Deliverables:** `tools/pdf/{proposal, audit, _humanize, _brand, renderer, cli}.py`. Playwright Chromium renderer (weasyprint blocked by missing macOS system libs — pango/gobject).
 
-**Verify proposal:**
+**Verify proposal + audit PDFs:**
 ```bash
-uv run python -m agents.proposal --lead-id <id>
+python -m tools.pdf both --lead-id trayvino --leads data/leads/test_batch.csv --preview-url https://trayvino-wines.vercel.app
 ```
-Expected: `data/outputs/<slug>/proposal.pdf` generated, looks pro on open.
+Expected: `data/outputs/<slug>/proposal.pdf` (1pg, plain-English problems + $loss callout + timeline + price + Book A Call) and `audit.pdf` (multi-page, per-problem cards + calculation transparency table + methodology + competitive benchmark).
 
-**Reply detection:**
+**Customize price / book-call URL:**
 ```bash
-uv run python -m pipeline.reply-watcher --once
+python -m tools.pdf both ... --price "CA$3,200" --book-call-url https://cal.com/harshpatadia/intro
 ```
-Expected: scans Gmail, marks Sheet rows where reply received.
+
+**Batch (every lead in CSV):**
+```bash
+python -m tools.pdf batch --leads <csv>
+```
+
+**Reply detection ⏳ — not built.** Planned: `tools/gmail/reply_watcher.py` polls Gmail label, flips sheet status, triggers proposal send.
+
+**Open/click tracking ⏳ — not built.** Planned: tracking pixel relay (1×1 GIF endpoint) + UTM-wrapped preview URL.
 
 ---
 
-## Phase 10 — Orchestrator
-**Deliverables:** `pipeline/orchestrator.py` — single command runs all phases for N leads.
+## Phase 10 — Orchestrator (Worker Pool) ✅
+**Deliverables:** `tools/orchestrator/` package + `.claude/skills/stitch-batch/SKILL.md` + `.claude/skills/stitch-probe/SKILL.md`.
+- `cli.py` typer commands: `run-batch`, `resume`, `status`, `pending-screens`, `set-stitch-cap`
+- `runner.py` asyncio pipeline w/ per-phase `asyncio.Semaphore` (default: scrape/audit/design_ref/council/polish=10, build=5, stitch_fulfill=3, email=1)
+- `_phases.py` async wrappers around existing CLIs (`asyncio.to_thread` for sync work)
+- `_state.py` per-lead `asyncio.Lock` map + sheet status updates
+- Pauses at Stitch envelope. `/stitch-batch` skill drives MCP fulfillment. `orchestrator resume` continues polish + deploy in parallel.
 
-**Verify:**
+**Verify pre-stitch run on 1+ leads (no MCP yet):**
 ```bash
-uv run python -m pipeline.orchestrator --limit 3 --skip-send
+python -m tools.orchestrator run-batch --leads data/leads/test_batch.csv --design-system-id <ds_asset_id> --no-sheet --pause-at-stitch
 ```
-Expected: 3 leads audit → ref → design → variants → (manual approval) → build → email drafts → all logged to Sheet. No actual send (`--skip-send`).
+Expected: per-lead `scrape`, `audit`, `design_ref`, `council` (scheduled), `stitch_envelope` all OK. Envelopes written under `data/outputs/<slug>/stitch_screens_request.json`.
+
+**Drive Stitch fulfillment (inside CC session):**
+```
+/stitch-batch
+```
+Skill reads pending screens, fires parallel `mcp__stitch__generate_screen_from_text` calls (concurrency from `.orchestrator/stitch_caps.json`), polls `list_screens`, downloads HTML, calls `tools.stitch fulfill` per row.
+
+**Resume post-stitch:**
+```bash
+python -m tools.orchestrator resume --leads data/leads/test_batch.csv --no-sheet
+```
+Expected: polish + build/deploy in parallel. Sheet status flips to `deployed` with preview URL.
+
+**Set Stitch cap manually (or run `/stitch-probe` to derive):**
+```bash
+python -m tools.orchestrator set-stitch-cap --n 5
+```
 
 ---
 
@@ -192,6 +228,101 @@ Expected: 3 leads audit → ref → design → variants → (manual approval) �
 - Sheet `error_log` empty
 - Gmail Sent folder = today's count matches Sheet
 - Vercel dashboard ≈ leads processed
+
+---
+
+## Phase 13 — Scraper repair (✅ partial)
+**Status:** 4 working sources after repair (Are.na, Codrops, **Unsplash**, **Pexels**). Behance + Dribbble RSS now cloudflared — code present but disabled via `SOURCE_WEIGHTS = 0.0`.
+
+**Deliverables:**
+- `tools/scrapers/unsplash.py` — Unsplash search API (`UNSPLASH_ACCESS_KEY`, 50 req/hr free)
+- `tools/scrapers/pexels.py` — Pexels search API (`PEXELS_API_KEY`, unlimited free)
+- `tools/scrapers/behance_rss.py` — Behance RSS (currently blocked; field-id mapping built for future stealth retry)
+- `tools/scrapers/dribbble_rss.py` — Dribbble RSS (currently blocked; popular + tag feed paths built)
+- `tools/scrapers/cli.py`:
+  - `VERTICAL_SEEDS` map (fnb → wine/winery/cellar; restaurant → menu/dining; dental → clinic/healthcare; realtor → architecture/property)
+  - `SOURCE_WEIGHTS` matrix per vertical — r3f weighted to 0 for non-3D verticals
+  - `build_queries()` now seed-driven, not "modern X landing page" template
+
+**Verify per source:**
+```bash
+python -m tools.scrapers.unsplash -q "wine cellar" -n 5 --pretty
+python -m tools.scrapers.pexels -q "vineyard" -n 5 --pretty
+python -m tools.scrapers.behance_rss -q "winery hospitality" -n 5 --pretty   # may 429
+python -m tools.scrapers.dribbble_rss -q "wine" -n 5 --pretty               # may 202 empty
+```
+
+**Verify unified sweep:**
+```bash
+python -m tools.scrapers.cli --vertical fnb --style editorial -n 30 --pretty 2>/dev/null | \
+  python -c "import sys,json; d=json.load(sys.stdin); print(d['by_source']); print('items:', len(d['items']))"
+```
+Expected: ≥4 sources non-zero, total deduped items = 30.
+
+## Phase 13b — Anti-bot bypass (⏳)
+Behance + Dribbble + Awwwards + Cosmos + Pinterest blocked by Cloudflare on plain `requests`. Plan: Playwright stealth context w/ persistent cookies + browser fingerprint rotation. Not built yet.
+
+---
+**Problem:** only 3/9 sources (Are.na, Codrops, r3f-examples) return data on a fresh sweep. Awwwards / Cosmos / Pinterest / 21st.dev / react-bits / GSAP showcase all silently return 0 items due to Cloudflare or anti-bot. r3f returns 100+ but for non-3D verticals (wine, dental, realtor) the cosmic palette derails downstream design.
+
+**Fix list:**
+1. Add Unsplash API (`UNSPLASH_ACCESS_KEY`, 50/hr free) — vertical keyword search returns curated photos.
+2. Add Pexels API (free, unlimited) — same purpose as Unsplash fallback.
+3. Add Behance RSS feed (`https://www.behance.net/feeds/projects?field=<field_id>`) — no auth, by creative field.
+4. Add Dribbble popular RSS (`https://dribbble.com/shots/popular.rss`).
+5. Rewrite `tools/scrapers/cli.build_queries()` to vertical→seed-terms map. Example:
+   - `fnb`: ["wine", "winery", "vineyard", "cellar", "bottle photography"]
+   - `restaurant`: ["restaurant menu", "hospitality", "fine dining"]
+   - `dental`: ["dental clinic", "healthcare brand", "medical UI"]
+   - `realtor`: ["luxury real estate", "architecture", "property brochure"]
+6. Per-vertical source weights — demote r3f to 0 for non-3D verticals; boost Unsplash/Pexels for hospitality.
+7. Persistent Playwright contexts (cookies + stealth) for Awwwards / Cosmos / Pinterest.
+
+**Verify after fix:**
+```bash
+python -m tools.scrapers.cli --vertical fnb --style editorial -n 30 --pretty | python -c "import sys,json; d=json.load(sys.stdin); print(d['by_source'])"
+```
+Expected: ≥5 sources non-zero, total items ≥30, color palette diverse (not r3f-dominated).
+
+---
+
+## Phase 15 — NLP keyword extraction ✅
+**Deliverables:** `tools/keywords/{crawl,bucket,extract,validate,pipeline,cli}.py`. 2 LLM calls + spaCy + KeyBERT.
+
+**Verify:**
+```bash
+python -m tools.keywords one \
+  --lead-id trayvino --business "Trayvino Wines" --vertical fnb \
+  --site-url https://trayvinowines.com \
+  --tagline "Ontario wine agency & importer" \
+  --service "Wine agency representation" --service "Hospitality accounts" \
+  --max-pages 3
+```
+Expected: `data/outputs/<slug>/keywords.json` written. Output:
+- `bucket_tokens`: 3-5 sub-vertical anchors from LLM #1 (e.g. `["ontario wine agency", "wine importer", "wholesale wine distributor"]`)
+- `keywords`: 8-15 NLP-extracted terms filtered by LLM #2 (e.g. `["wine", "ontario", "chardonnay", "carmenere", "cranswick", ...]`)
+- `candidates`: top 50 raw spaCy+KeyBERT extractions w/ scores + source tags
+
+**Skip both LLM calls (offline / quota-saving):**
+```bash
+python -m tools.keywords one ... --skip-llm
+```
+Falls back to `VERTICAL_SEEDS` bucket + top-N by KeyBERT score.
+
+**Batch:**
+```bash
+python -m tools.keywords batch --leads data/leads/test_batch.csv --max-pages 3
+```
+
+**Hooked into orchestrator** — runs as `phase_keywords` between audit and scrape. Scraper auto-detects `keywords.json` and uses NLP terms instead of static `VERTICAL_SEEDS`.
+
+---
+
+## Phase 14 — Reply detection + tracking (⏳)
+**Deliverables (planned):**
+- `tools/gmail/reply_watcher.py` — Gmail API polling (label `lead-reply`), flips sheet `reply_status`, marks lead → proposal flow.
+- `tools/tracking/pixel.py` — Cloudflare Worker or Vercel function serving 1×1 GIF, writes hit to sheet via webhook.
+- UTM wrapper for preview URLs in email body.
 
 ---
 

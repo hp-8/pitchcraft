@@ -95,9 +95,32 @@ Per ref artifact layout: `data/cache/refs/<source>/<slug>/{preview.mp4, thumbnai
 - **Phase 9** — Reply handling + proposal-agent + PDF generation
 - **Phase 10** — Orchestrator (CSV row → all phases automated, errors logged to Sheet)
 - **Phase 11** — Manual test loop: 20 end-to-end leads, measure, iterate
+- **Phase 12** — Orchestrator parallel runner (worker pool, semaphores per phase, sheet locks, resume/pause around Stitch MCP boundary). Built as `tools/orchestrator/` + `.claude/skills/stitch-batch/` + `.claude/skills/stitch-probe/`. 35-lead batch ~25-40min wall vs ~7-12hr serial. ✅
+- **Phase 13** — Scraper repair + moodboard quality
+  - 13.1 Diagnose: only Are.na + Codrops + r3f-examples currently return data (6/9 sources blocked by anti-bot or query mismatch)
+  - 13.2 Add image-heavy free sources: Unsplash API (50/hr), Pexels API (unlimited), Behance RSS, Dribbble popular RSS
+  - 13.3 Vertical→query map: per-vertical seed terms (fnb → wine/cellar/bottle, restaurant → menu/fine-dining, dental → clinic/healthcare, realtor → architecture/property)
+  - 13.4 Per-vertical source weighting: demote r3f for non-3D verticals; boost image-heavy sources for hospitality/realtor
+  - 13.5 Stronger stealth on Awwwards/Cosmos/Pinterest via Playwright + persistent context
+- **Phase 14** — Reply detection + open/click tracking (Gmail polling + tracking pixel relay)
+- **Phase 15** — NLP keyword extraction (✅) — `tools/keywords/` package. Runs between audit + scrape.
+  - LLM #1: bucket classifier (3-5 sub-vertical tokens) — Gemini Flash JSON mode
+  - Multi-page Firecrawl (root + /about + /services or vertical equivalents)
+  - spaCy NER + noun chunks → candidate pool
+  - KeyBERT semantic ranking against bucket tokens (model `all-MiniLM-L6-v2` cached ~80MB)
+  - LLM #2: validator/filter (drops PII, generic chrome, irrelevant terms)
+  - `keywords.json` per lead → `tools/scrapers/cli.build_queries()` reads it instead of static VERTICAL_SEEDS
+  - Per-lead grounding: keywords come from the lead's own site copy (real varietals, regions, producer names)
+  - ~32s/lead total (cached KeyBERT after first run); 2 LLM calls only
+  - YAKE fallback if KeyBERT unavailable
 
 ## Master Sheet Columns
 lead_id, name, business, vertical, email, site_url, audit_status, audit_url, audit_problems, audit_dollar_impact, ref_status, moodboard_url, stitch_status, stitch_variants_url, approved_variant, prototype_status, prototype_url, deployed_at, email_status, email_sent_at, email_subject, email_body, open_count, click_count, reply_status, reply_text, call_booked, call_date, proposal_status, proposal_url, proposal_sent_at, deal_status, amount_usd, payment_method, paid_at, notes, last_updated, error_log
+
+## Current Build Status (2026-05-22)
+- ✅ Phases 0, 2, 3, 4, 5 (approval gate UI), 6a, 6b (via skill), 6c, 6d, 7, 8, 9 (proposal + audit PDFs), 10, 12, 13 (scraper repair — Unsplash + Pexels active; Behance + Dribbble blocked by anti-bot, code present but disabled in default rotation), 15 (NLP keywords pipeline — spaCy + KeyBERT + 2 LLM calls per lead)
+- ⚠️ Phase 1 partial — only Are.na, Codrops, Unsplash, Pexels return data on a fresh sweep (4 working sources, 4 image-rich)
+- ⏳ Phases 11 (20-lead test), 14 (reply detection + tracking), 16 (clone-and-rebrand for same-vertical leads), Behance/Dribbble stealth-fetch
 
 ## Success Criteria
 - 20 leads processed end-to-end

@@ -50,13 +50,20 @@ def _tag_marquee(el: Tag) -> bool:
 def _tag_parallax(el: Tag) -> bool:
     if el.has_attr("data-parallax"):
         return False
-    el["data-parallax"] = "0.3"
+    el["data-parallax"] = "0.12"
+    return True
+
+
+def _tag_img_reveal(el: Tag) -> bool:
+    if el.has_attr("data-img-reveal"):
+        return False
+    el["data-img-reveal"] = ""
     return True
 
 
 def autotag(soup: BeautifulSoup) -> dict[str, int]:
     """Apply autotag heuristics in place. Returns count per tag type."""
-    counts = {"reveal": 0, "split": 0, "magnetic": 0, "marquee": 0, "parallax": 0}
+    counts = {"reveal": 0, "split": 0, "magnetic": 0, "marquee": 0, "parallax": 0, "img_reveal": 0}
 
     # Section reveals
     section_selectors = ["section", "article"]
@@ -86,6 +93,23 @@ def autotag(soup: BeautifulSoup) -> dict[str, int]:
                 continue
             if _tag_section(el):
                 counts["reveal"] += 1
+
+    # Fallback: top-level body > div children (Stitch HTML rarely uses <section>)
+    body = soup.find("body")
+    if body is not None and counts["reveal"] < 3:
+        for el in body.find_all("div", recursive=False):
+            if _has_ancestor(el, _SKIP_ANCESTORS):
+                continue
+            if _tag_section(el):
+                counts["reveal"] += 1
+        # second-level fallback (one wrapper deep)
+        if counts["reveal"] < 3:
+            for wrapper in body.find_all("div", recursive=False):
+                for el in wrapper.find_all("div", recursive=False):
+                    if _has_ancestor(el, _SKIP_ANCESTORS):
+                        continue
+                    if _tag_section(el):
+                        counts["reveal"] += 1
 
     # Headings (first N)
     heading_count = 0
@@ -118,19 +142,23 @@ def autotag(soup: BeautifulSoup) -> dict[str, int]:
             if _tag_marquee(el):
                 counts["marquee"] += 1
 
-    # Parallax: first hero img/video in first non-nav section
-    first_section = None
-    for sel in ("section", "article"):
-        for cand in soup.find_all(sel):
-            if _has_ancestor(cand, _SKIP_ANCESTORS):
-                continue
-            first_section = cand
-            break
-        if first_section is not None:
-            break
-    if first_section is not None:
-        media = first_section.find(["img", "video"])
-        if media is not None and _tag_parallax(media):
-            counts["parallax"] += 1
+    # Parallax: first hero img/video
+    first_media = None
+    for cand in soup.find_all(["img", "video"]):
+        if _has_ancestor(cand, _SKIP_ANCESTORS):
+            continue
+        first_media = cand
+        break
+    if first_media is not None and _tag_parallax(first_media):
+        counts["parallax"] += 1
+
+    # Image clip-path reveals — every content img/video not in nav/footer
+    for el in soup.find_all(["img", "video"]):
+        if _has_ancestor(el, _SKIP_ANCESTORS):
+            continue
+        if el is first_media:
+            continue
+        if _tag_img_reveal(el):
+            counts["img_reveal"] += 1
 
     return counts

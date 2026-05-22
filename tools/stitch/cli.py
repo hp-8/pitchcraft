@@ -9,6 +9,13 @@ import typer
 
 from tools.audit._models import AuditResult
 from tools.stitch._models import LeadContext
+from tools.stitch.fulfiller import (
+    finalize_envelope,
+    iter_pending_envelopes,
+    iter_pending_screens,
+    mark_screen_error,
+    mark_screen_fulfilled,
+)
 from tools.stitch.screens import write_screens_request
 
 app = typer.Typer(add_completion=False, help="Stitch screen envelope ops.")
@@ -78,3 +85,65 @@ def list_envelopes(
             typer.echo(f"{env_path}\tfulfilled={fulfilled}/{len(screens)}")
         except Exception as exc:  # noqa: BLE001
             typer.echo(f"{env_path}\tERROR {exc}")
+
+
+@app.command("pending")
+def pending(
+    out_dir: Path = typer.Option(Path("data/outputs"), "--out-dir"),
+) -> None:
+    """Emit JSONL of pending screens for orchestrator dispatch."""
+    for env_path in iter_pending_envelopes(out_dir):
+        for idx, screen in iter_pending_screens(env_path):
+            typer.echo(
+                json.dumps(
+                    {
+                        "envelope": str(env_path),
+                        "idx": idx,
+                        "tool": screen["tool"],
+                        "args": screen["args"],
+                        "target_path": screen["target_path"],
+                        "page": screen["page"],
+                        "variant_idx": screen["variant_idx"],
+                    }
+                )
+            )
+
+
+@app.command("fulfill")
+def fulfill(
+    envelope: Path = typer.Option(..., "--envelope", exists=True, dir_okay=False),
+    idx: int = typer.Option(..., "--idx"),
+    result_file: Path = typer.Option(
+        ..., "--result-file", exists=True, dir_okay=False,
+        help="JSON file with the Stitch tool's return payload.",
+    ),
+    html_file: Path | None = typer.Option(
+        None, "--html-file", exists=True, dir_okay=False,
+        help="Optional sibling HTML to save next to target_path.",
+    ),
+) -> None:
+    """Mark screen fulfilled with Stitch return payload."""
+    payload = json.loads(result_file.read_text(encoding="utf-8"))
+    html = html_file.read_text(encoding="utf-8") if html_file else None
+    mark_screen_fulfilled(envelope, idx, payload, html_content=html)
+    typer.echo(f"ok envelope={envelope} idx={idx}")
+
+
+@app.command("fulfill-error")
+def fulfill_error_cmd(
+    envelope: Path = typer.Option(..., "--envelope", exists=True, dir_okay=False),
+    idx: int = typer.Option(..., "--idx"),
+    error: str = typer.Option(..., "--error"),
+) -> None:
+    """Mark screen fulfilled with an error (so batch keeps moving)."""
+    mark_screen_error(envelope, idx, error)
+    typer.echo(f"error_recorded envelope={envelope} idx={idx}")
+
+
+@app.command("finalize")
+def finalize(
+    envelope: Path = typer.Option(..., "--envelope", exists=True, dir_okay=False),
+) -> None:
+    """Stamp final status (queued|partial|ready) onto envelope."""
+    status = finalize_envelope(envelope)
+    typer.echo(status)

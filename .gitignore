@@ -19,6 +19,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
 
 # Node / Next
 node_modules/
@@ -28,13 +29,23 @@ dist/
 build/
 *.tsbuildinfo
 
-# Data (track folder, ignore contents)
+# Data: track folders, ignore generated contents.
 data/leads/*
 !data/leads/.gitkeep
 data/cache/*
 !data/cache/.gitkeep
 data/outputs/*
 !data/outputs/.gitkeep
+data/deliverables/*
+!data/deliverables/.gitkeep
+
+# Pipeline state
+.orchestrator/
+.hallmark/
+
+# Agent / IDE config
+.claude/
+.cursor/
 
 # Vercel
 .vercel/
