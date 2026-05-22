@@ -1,4 +1,4 @@
-# Website Generator
+# Pitchcraft
 
 > Pipeline that turns a CSV of local businesses into deployed prototype websites, audit PDFs, and growth proposals, ready to send.
 
@@ -6,8 +6,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="#"><img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+"></a>
   <a href="#"><img src="https://img.shields.io/badge/node-18%2B-green" alt="Node 18+"></a>
-  <a href="https://github.com/hp-8/website-generator/issues"><img src="https://img.shields.io/badge/contributions-welcome-orange.svg" alt="Contributions welcome"></a>
-  <a href="https://github.com/hp-8/website-generator/stargazers"><img src="https://img.shields.io/github/stars/hp-8/website-generator?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/hp-8/pitchcraft/issues"><img src="https://img.shields.io/badge/contributions-welcome-orange.svg" alt="Contributions welcome"></a>
+  <a href="https://github.com/hp-8/pitchcraft/stargazers"><img src="https://img.shields.io/github/stars/hp-8/pitchcraft?style=social" alt="GitHub stars"></a>
 </p>
 
 A solo-operator infrastructure for mass producing high quality prototype websites and matching sales collateral for local service businesses. Built around free tools, falls back gracefully when any single provider rate limits, and ships everything as portable static HTML plus PDFs.
@@ -167,7 +167,7 @@ For feature requests, describe the use case before the proposed implementation.
 
 ## Security
 
-This repository contains only infrastructure code. Lead data, generated outputs, credentials, and any client artifacts are gitignored and never reach the public repo. If you find a way to leak data through the pipeline, please open a security issue (or email `security@harshpatadia.space`) before opening a public PR.
+This repository contains only infrastructure code. Lead data, generated outputs, credentials, and any client artifacts are gitignored and never reach the public repo. If you find a way to leak data through the pipeline, please open a security issue (or email `patadiaharsh.8@gmail.com`) before opening a public PR.
 
 ## License
 

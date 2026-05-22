@@ -1,12 +1,12 @@
 [project]
-name = "website-generator"
+name = "pitchcraft"
 version = "0.1.0"
 description = "Mass produce prototype websites, audit PDFs, and growth proposals for local service businesses."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Harsh Patadia", email = "hello@harshpatadia.space" }]
 license = { text = "MIT" }
-keywords = ["website-generator", "agency-automation", "audit", "lead-generation", "marketing-automation", "llm-fallback"]
+keywords = ["pitchcraft", "agency-automation", "audit", "lead-generation", "marketing-automation", "llm-fallback"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -20,9 +20,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/hp-8/website-generator"
-Repository = "https://github.com/hp-8/website-generator"
-Issues = "https://github.com/hp-8/website-generator/issues"
+Homepage = "https://github.com/hp-8/pitchcraft"
+Repository = "https://github.com/hp-8/pitchcraft"
+Issues = "https://github.com/hp-8/pitchcraft/issues"
 Author = "https://www.harshpatadia.space/"
 
 dependencies = [
