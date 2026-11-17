@@ -138,6 +138,83 @@ a {
   }
 }
 
+/* Motion system: one curve, movement only along the grid, rules lead, each plays once. */
+.pc-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+  margin-bottom: -0.06em;
+}
+.pc-line > span {
+  display: block;
+  animation: pc-set 900ms var(--ease-out-expo) both;
+}
+@keyframes pc-set {
+  from {
+    transform: translateY(105%);
+  }
+}
+
+.pc-rule {
+  position: relative;
+}
+.pc-rule::before {
+  content: "";
+  position: absolute;
+  inset: -1px 0 auto 0;
+  height: var(--rule-w, 1px);
+  background: var(--ink);
+  transform-origin: left;
+  animation: pc-draw 700ms var(--ease-out-expo) both;
+  animation-delay: inherit;
+}
+@keyframes pc-draw {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.pc-after {
+  animation: pc-in 700ms var(--ease-out-expo) both;
+}
+
+/* The orange square arrives in one step: no fade, no slide. */
+.pc-stamp {
+  animation: pc-stamp 1ms steps(1) both;
+}
+@keyframes pc-stamp {
+  from {
+    visibility: hidden;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .pc-row {
+    animation: pc-row linear both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 90%;
+  }
+}
+@keyframes pc-row {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+}
+
+.pc-press {
+  transition: background-color 160ms var(--ease-out-expo), transform 160ms var(--ease-out-expo);
+}
+.pc-press:active {
+  transform: translateY(1px);
+}
+.pc-press svg {
+  transition: transform 160ms var(--ease-out-expo);
+}
+.pc-press:hover svg {
+  transform: translateX(3px);
+}
+
 .pc-live {
   animation: pc-pulse 1.6s ease-in-out infinite;
 }

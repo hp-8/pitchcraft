@@ -6,8 +6,11 @@ const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"], weight
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://pitchcraft.harshpatadia.com"),
   title: { default: "Pitchcraft", template: "%s · Pitchcraft" },
   description: "Turn lead lists into audited, redesigned, ready-to-send pitches.",
+  openGraph: { siteName: "Pitchcraft", type: "website", locale: "en_US" },
+  twitter: { card: "summary_large_image" },
   robots: { index: false, follow: false },
 };
 

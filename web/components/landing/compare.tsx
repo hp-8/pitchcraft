@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /* Two authored sample sites for one fictional business. Clearly illustrative. */
 
@@ -99,15 +99,51 @@ function NewSite() {
   );
 }
 
+const BEFORE = 38;
+const AFTER = 91;
+
 export function Compare() {
   const box = useRef<HTMLDivElement>(null);
+  const touched = useRef(false);
   const [pos, setPos] = useState(50);
 
   const move = useCallback((clientX: number) => {
     const r = box.current?.getBoundingClientRect();
     if (!r) return;
+    touched.current = true;
     setPos(Math.min(100, Math.max(0, ((clientX - r.left) / r.width) * 100)));
   }, []);
+
+  // One slow demonstration sweep (50 → 66 → 34 → 50) the first time it's seen; stops if the visitor grabs it.
+  useEffect(() => {
+    const node = box.current;
+    if (!node || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        const t0 = performance.now() + 500;
+        const D = 2400;
+        const tick = (t: number) => {
+          if (touched.current) return;
+          const p = Math.max(0, Math.min(1, (t - t0) / D));
+          setPos(50 + 16 * Math.sin(p * Math.PI * 2) * (1 - p * 0.15));
+          if (p < 1) raf = requestAnimationFrame(tick);
+          else setPos(50);
+        };
+        raf = requestAnimationFrame(tick);
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(node);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const score = Math.round(AFTER - ((AFTER - BEFORE) * pos) / 100);
 
   return (
     <figure>
@@ -142,12 +178,22 @@ export function Compare() {
           min={0}
           max={100}
           value={pos}
-          onChange={(e) => setPos(Number(e.target.value))}
+          onChange={(e) => {
+            touched.current = true;
+            setPos(Number(e.target.value));
+          }}
           aria-label="Compare the current site with the Pitchcraft prototype"
           className="sr-only"
         />
       </div>
-      <figcaption className="mt-4 text-center text-sm text-ink-3">Drag to compare. Illustrative example of a fictional business.</figcaption>
+      <figcaption className="mt-3 flex items-baseline justify-between gap-4 border-t border-ink pt-3 text-sm">
+        <span className="text-ink-3">Drag to compare. Illustrative example, fictional business.</span>
+        <span className="shrink-0">
+          <span className="text-ink-3">Site score </span>
+          <span className="num inline-block w-[2ch] text-right font-bold">{score}</span>
+          <span className="text-ink-3">/100</span>
+        </span>
+      </figcaption>
     </figure>
   );
 }
