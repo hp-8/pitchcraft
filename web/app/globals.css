@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/* Pitchcraft console: calm graphite ground, deep ink, one ink-blue action color,
+   status colors that only ever mean status. */
+:root {
+  --ground: #f6f6f3;
+  --surface: #ffffff;
+  --sunken: #efefeb;
+  --line: #e3e3dd;
+  --line-strong: #cfcfc7;
+  --ink: #12161f;
+  --ink-2: #474d59;
+  --ink-3: #6b7180;
+  --action: #2638c4;
+  --action-hover: #1d2ea6;
+  --action-tint: #eceefb;
+  --done: #17784a;
+  --done-tint: #e6f3ec;
+  --wait: #a35f00;
+  --wait-tint: #fbf0de;
+  --fail: #b42318;
+  --fail-tint: #fbe9e7;
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-action: var(--action);
+  --color-action-hover: var(--action-hover);
+  --color-action-tint: var(--action-tint);
+  --color-done: var(--done);
+  --color-done-tint: var(--done-tint);
+  --color-wait: var(--wait);
+  --color-wait-tint: var(--wait-tint);
+  --color-fail: var(--fail);
+  --color-fail-tint: var(--fail-tint);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: var(--action);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+input,
+textarea {
+  caret-color: var(--action);
+}
+
+* {
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  text-underline-offset: 3px;
+}
+
+@keyframes pc-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pc-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.pc-live {
+  animation: pc-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,30 @@
+# Render Blueprint: Pitchcraft pipeline API.
+# Free plan: 512 MB RAM, sleeps after 15 min idle, disk wiped on restart.
+# For persistent batches, switch plan to "starter" and uncomment the disk block.
+services:
+  - type: web
+    name: pitchcraft-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PITCHCRAFT_API_TOKEN
+        sync: false
+      - key: STITCH_DESIGN_SYSTEM_ID
+        sync: false
+      - key: LLM_PROVIDERS
+        value: gemini,openai,anthropic,groq
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: PAGESPEED_API_KEY
+        sync: false
+      - key: VERCEL_TOKEN
+        sync: false
+    # disk:
+    #   name: pitchcraft-data
+    #   mountPath: /app/data
+    #   sizeGB: 1

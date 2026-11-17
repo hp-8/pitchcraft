@@ -287,7 +287,10 @@ def _build_sync(job: LeadJob, skip_deploy: bool) -> dict:
         skip_deploy=skip_deploy,
         sheets_client=None,
     )
-    return res.model_dump() if hasattr(res, "model_dump") else dict(res)
+    out = res.model_dump() if hasattr(res, "model_dump") else dict(res)
+    # Persisted so the operator API can show deploy state without the sheet.
+    (lead_dir / "build.json").write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
+    return out
 
 
 async def phase_build(job: LeadJob, skip_deploy: bool = False) -> PhaseResult:
