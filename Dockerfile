@@ -14,15 +14,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm install -g vercel@latest \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.8.0 /uv /usr/local/bin/uv
+# Same uv that wrote uv.lock, so the lockfile format always matches.
+RUN pip install --no-cache-dir "uv==0.13.9"
 
 WORKDIR /app
+# Deps layer: cached until pyproject.toml / uv.lock change.
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --no-dev --no-install-project
-RUN uv run --no-dev python -m playwright install --with-deps chromium
+RUN uv sync --locked --no-dev --no-install-project
+RUN python -m playwright install --with-deps chromium
 
 COPY . .
-RUN uv sync --no-dev
+RUN uv sync --locked --no-dev
 
 # Persistent disk (paid Render plans) should be mounted at /app/data so leads + outputs survive redeploys.
-CMD ["sh", "-c", "uv run --no-dev --no-sync uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"]

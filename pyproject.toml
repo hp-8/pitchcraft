@@ -19,12 +19,6 @@ classifiers = [
     "Topic :: Software Development :: Code Generators",
 ]
 
-[project.urls]
-Homepage = "https://github.com/hp-8/pitchcraft"
-Repository = "https://github.com/hp-8/pitchcraft"
-Issues = "https://github.com/hp-8/pitchcraft/issues"
-Author = "https://www.harshpatadia.space/"
-
 dependencies = [
     "scrapling[fetchers]>=0.2.9,<0.3",
     "playwright>=1.47.0",
@@ -46,6 +40,12 @@ dependencies = [
     "numpy>=1.26",
     "beautifulsoup4>=4.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/hp-8/pitchcraft"
+Repository = "https://github.com/hp-8/pitchcraft"
+Issues = "https://github.com/hp-8/pitchcraft/issues"
+Author = "https://www.harshpatadia.space/"
 
 [project.optional-dependencies]
 openai = ["openai>=1.40.0"]
