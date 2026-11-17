@@ -1,0 +1,4 @@
+lead_id,business,vertical,site_url,email,location,name
+L001,Bluebell Dental Studio,dental,https://example-bluebell-dental.com,owner@example-bluebell-dental.com,"Austin, TX",Dana Reyes
+L002,Casa Olivo Trattoria,restaurant,https://example-casa-olivo.com,hello@example-casa-olivo.com,"Denver, CO",Marco Bellini
+L003,Harbor Point Realty,realtor,https://example-harbor-point.com,team@example-harbor-point.com,"Tampa, FL",Jess Lin

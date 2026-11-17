@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, ExternalLink, FileText, Monitor, Smartphone, Undo2, X } from "lucide-react";
@@ -17,7 +16,7 @@ import {
   type LeadRow,
   type Problem,
 } from "@/lib/api";
-import { Button, DecisionBadge, ErrorState, PhaseTrack, Shell, Skeleton } from "@/components/ui";
+import { AppShell, Button, Crumb, DecisionBadge, ErrorState, PhaseTrack, Skeleton } from "@/components/ui";
 
 const SEV: Record<Problem["severity"], string> = {
   high: "bg-fail-tint text-fail",
@@ -31,7 +30,7 @@ function Preview({ lead }: { lead: LeadDetail }) {
   const src = live ?? (lead.files.site ? apiFile(lead.slug, "site") : null);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(18_22_31/0.04),0_8px_24px_-12px_rgb(18_22_31/0.12)]">
+    <div className="flex min-h-[420px] flex-col overflow-hidden border border-ink bg-surface">
       <div className="flex items-center gap-3 border-b border-line px-3 py-2">
         <div className="flex gap-1.5 pl-1" aria-hidden>
           <span className="size-2.5 rounded-full bg-line-strong" />
@@ -65,7 +64,7 @@ function Preview({ lead }: { lead: LeadDetail }) {
           </a>
         )}
       </div>
-      <div className="flex h-[min(72vh,760px)] justify-center bg-sunken">
+      <div className="flex min-h-0 flex-1 justify-center bg-sunken">
         {src ? (
           <iframe
             key={device}
@@ -103,7 +102,7 @@ function LeadView({ slug }: { slug: string }) {
   const row = idx >= 0 ? rows[idx] : null;
   const prev = idx > 0 ? rows[idx - 1] : null;
   const next = idx >= 0 && idx < rows.length - 1 ? rows[idx + 1] : null;
-  const href = (s: string) => `/leads/${s}${batch ? `?batch=${batch}` : ""}`;
+  const href = (s: string) => `/app/leads/${s}${batch ? `?batch=${batch}` : ""}`;
 
   const note = noteDraft ?? lead?.decision?.note ?? "";
 
@@ -149,38 +148,34 @@ function LeadView({ slug }: { slug: string }) {
   const impact = lead?.audit.dollar_impact;
 
   return (
-    <Shell
-      crumbs={
+    <AppShell
+      header={
         <>
-          <Link href="/" className="rounded hover:text-ink">
-            Batches
-          </Link>
+          <Crumb href="/app">Dashboard</Crumb>
           {batch && (
             <>
-              <ChevronRight className="size-3.5" />
-              <Link href={`/batches/${batch}`} className="truncate rounded first-letter:uppercase hover:text-ink">
-                {batchName(batch)}
-              </Link>
+              <ChevronRight className="size-3.5 shrink-0" />
+              <Crumb href={`/app/batches/${batch}`}>{batchName(batch)}</Crumb>
             </>
           )}
-          <ChevronRight className="size-3.5" />
-          <span className="truncate text-ink">{title}</span>
+          <ChevronRight className="size-3.5 shrink-0" />
+          <Crumb>{title}</Crumb>
         </>
       }
     >
       {error && !lead && <ErrorState error={error} onRetry={reload} />}
       {loading && !lead && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <Skeleton className="h-[72vh]" />
-          <Skeleton className="h-96" />
+        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <Skeleton className="h-full" />
+          <Skeleton className="h-full" />
         </div>
       )}
       {lead && (
         <>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="truncate text-[28px] font-semibold tracking-[-0.02em]">{title}</h1>
-              <p className="mt-1 text-[15px] text-ink-2">
+              <h1 className="truncate text-[28px] font-black tracking-[-0.03em] [word-spacing:0.06em]">{title}</h1>
+              <p className="mt-0.5 text-sm text-ink-2">
                 <span className="capitalize">{lead.audit.vertical ?? row?.vertical}</span>
                 {row?.location && ` · ${row.location}`}
                 {lead.audit.url && (
@@ -208,15 +203,15 @@ function LeadView({ slug }: { slug: string }) {
             )}
           </div>
 
-          <div className="mt-6 max-w-2xl">
+          <div className="mt-4 max-w-xl">
             <PhaseTrack phases={lead.phases} size="lg" />
           </div>
 
-          <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="mt-5 grid min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
             <Preview lead={lead} />
 
-            <aside className="space-y-4 lg:sticky lg:top-20">
-              <section className="rounded-xl border border-line bg-surface p-5" aria-label="Review">
+            <aside className="min-h-0 space-y-4 overflow-y-auto pb-1">
+              <section className="border border-ink bg-surface p-5" aria-label="Review">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[15px] font-semibold">Your review</h2>
                   <DecisionBadge decision={lead.decision?.decision ?? null} />
@@ -260,7 +255,7 @@ function LeadView({ slug }: { slug: string }) {
                 </p>
               </section>
 
-              <section className="rounded-xl border border-line bg-surface p-5" aria-label="Audit findings">
+              <section className="border border-ink bg-surface p-5" aria-label="Audit findings">
                 <div className="flex items-baseline justify-between gap-3">
                   <h2 className="text-[15px] font-semibold">Audit findings</h2>
                   {lead.audit.audited_at && <span className="text-xs text-ink-3">{timeAgo(lead.audit.audited_at)}</span>}
@@ -289,7 +284,7 @@ function LeadView({ slug }: { slug: string }) {
                 )}
               </section>
 
-              <section className="rounded-xl border border-line bg-surface p-5" aria-label="Documents">
+              <section className="border border-ink bg-surface p-5" aria-label="Documents">
                 <h2 className="text-[15px] font-semibold">Documents</h2>
                 <div className="mt-3 space-y-1">
                   {(
@@ -324,7 +319,7 @@ function LeadView({ slug }: { slug: string }) {
           </div>
         </>
       )}
-    </Shell>
+    </AppShell>
   );
 }
 

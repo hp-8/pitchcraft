@@ -1,25 +1,25 @@
 @import "tailwindcss";
 
-/* Pitchcraft console: calm graphite ground, deep ink, one ink-blue action color,
-   status colors that only ever mean status. */
+/* Pitchcraft: Swiss poster. White paper, black ink, one signal orange that only
+   ever means "this needs you now". Status is drawn in black (fill / hatch / outline). */
 :root {
-  --ground: #f6f6f3;
+  --ground: #ffffff;
   --surface: #ffffff;
-  --sunken: #efefeb;
-  --line: #e3e3dd;
-  --line-strong: #cfcfc7;
-  --ink: #12161f;
-  --ink-2: #474d59;
-  --ink-3: #6b7180;
-  --action: #2638c4;
-  --action-hover: #1d2ea6;
-  --action-tint: #eceefb;
-  --done: #17784a;
-  --done-tint: #e6f3ec;
-  --wait: #a35f00;
-  --wait-tint: #fbf0de;
-  --fail: #b42318;
-  --fail-tint: #fbe9e7;
+  --sunken: #f3f3f1;
+  --line: #e2e2df;
+  --line-strong: #0a0a0a;
+  --ink: #0a0a0a;
+  --ink-2: #3b3b3b;
+  --ink-3: #737373;
+  --action: #ff3b00;
+  --action-hover: #e63500;
+  --action-tint: #fff0ea;
+  --done: #0a0a0a;
+  --done-tint: #0a0a0a;
+  --wait: #ff3b00;
+  --wait-tint: #fff0ea;
+  --fail: #ff3b00;
+  --fail-tint: #fff0ea;
 }
 
 @theme inline {
@@ -40,7 +40,14 @@
   --color-wait-tint: var(--wait-tint);
   --color-fail: var(--fail);
   --color-fail-tint: var(--fail-tint);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  /* Square corners everywhere; rounded-full stays for dots. */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -107,6 +114,30 @@ a {
   }
 }
 
+.pc-rise {
+  animation: pc-in 900ms var(--ease-out-expo) both;
+}
+
+/* Scroll-linked reveal where supported; content stays visible everywhere else. */
+@supports (animation-timeline: view()) {
+  .pc-reveal {
+    animation: pc-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 30%;
+  }
+}
+
+@keyframes pc-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .pc-live {
   animation: pc-pulse 1.6s ease-in-out infinite;
 }
@@ -118,4 +149,10 @@ a {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Swiss: square corners throughout the product. Dots (rounded-full) and the
+   sample websites inside the landing comparison keep their own shapes. */
+:where(body *:not(.rounded-full):not(.pc-keep-shape *)) {
+  border-radius: 0 !important;
 }

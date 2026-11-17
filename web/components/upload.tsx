@@ -26,7 +26,7 @@ export function UploadBatch({ compact = false }: { compact?: boolean }) {
     fd.append("file", file);
     try {
       const res = await api<{ id: string }>("batches", { method: "POST", body: fd });
-      router.push(`/batches/${res.id}`);
+      router.push(`/app/batches/${res.id}`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Upload failed. Try again.");
       setBusy(false);

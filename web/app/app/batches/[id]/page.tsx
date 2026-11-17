@@ -2,19 +2,10 @@
 
 import Link from "next/link";
 import { Suspense, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ChevronRight, Loader2, Play, RotateCw, ScrollText, Search, X } from "lucide-react";
-import {
-  PHASES,
-  api,
-  ApiError,
-  batchName,
-  money,
-  usePoll,
-  type LeadRow,
-  type RunState,
-} from "@/lib/api";
-import { Button, DecisionBadge, ErrorState, PhaseTrack, Shell, Skeleton } from "@/components/ui";
+import { api, ApiError, batchName, money, usePoll, type LeadRow, type RunState } from "@/lib/api";
+import { AppShell, Button, Crumb, DecisionBadge, ErrorState, PhaseTrack, Skeleton } from "@/components/ui";
 
 type BatchDetail = { id: string; leads: LeadRow[]; run: RunState };
 
@@ -44,36 +35,33 @@ function matches(l: LeadRow, f: FilterKey) {
   }
 }
 
-function LogPanel({ id, onClose }: { id: string; onClose: () => void }) {
+function LogDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const { data } = usePoll<{ lines: string[] }>(`batches/${id}/log`, 3000);
   return (
-    <section className="mt-6 overflow-hidden rounded-xl border border-line bg-ink" aria-label="Run log">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+    <aside
+      className="fixed inset-y-0 right-0 z-30 flex w-full max-w-xl flex-col border-l border-white/10 bg-ink"
+      style={{ animation: "pc-in 250ms var(--ease-out-expo) both" }}
+      aria-label="Run log"
+    >
+      <div className="flex h-14 items-center justify-between border-b border-white/10 px-5">
         <span className="text-sm font-medium text-white/90">Run log</span>
-        <button onClick={onClose} className="rounded p-1 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Close log">
+        <button onClick={onClose} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white" aria-label="Close log">
           <X className="size-4" />
         </button>
       </div>
-      <pre className="max-h-80 overflow-auto px-4 py-3 font-mono text-xs leading-relaxed text-white/75">
+      <pre className="min-h-0 flex-1 overflow-auto px-5 py-4 font-mono text-xs leading-relaxed text-white/75">
         {data?.lines.length ? data.lines.join("\n") : "No output yet. Start a run to see pipeline output here."}
       </pre>
-    </section>
-  );
-}
-
-export default function BatchPage() {
-  return (
-    <Suspense>
-      <BatchView />
-    </Suspense>
+    </aside>
   );
 }
 
 function BatchView() {
   const { id } = useParams<{ id: string }>();
+  const initial = useSearchParams().get("filter") as FilterKey | null;
   const router = useRouter();
   const { data, error, loading, reload } = usePoll<BatchDetail>(`batches/${id}`, 5000);
-  const [filter, setFilter] = useState<FilterKey>("all");
+  const [filter, setFilter] = useState<FilterKey>(FILTERS.some((f) => f.key === initial) ? initial! : "all");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [showLog, setShowLog] = useState(false);
@@ -88,9 +76,7 @@ function BatchView() {
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return leads.filter(
-      (l) =>
-        matches(l, filter) &&
-        (!needle || [l.business, l.site_url, l.location, l.lead_id].some((s) => s?.toLowerCase().includes(needle))),
+      (l) => matches(l, filter) && (!needle || [l.business, l.site_url, l.location, l.lead_id].some((s) => s?.toLowerCase().includes(needle))),
     );
   }, [leads, filter, q]);
   const pages = Math.max(1, Math.ceil(shown.length / PAGE));
@@ -100,11 +86,7 @@ function BatchView() {
     setBusy(mode);
     setRunError(null);
     try {
-      await api(`batches/${id}/run`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode }),
-      });
+      await api(`batches/${id}/run`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode }) });
       setShowLog(true);
       reload();
     } catch (e) {
@@ -116,23 +98,21 @@ function BatchView() {
 
   const running = data?.run.state === "running";
   const anyStarted = leads.some((l) => l.phases.audit === "done");
-  const waitingCount = counts.waiting;
+  const leadHref = (slug: string) => `/app/leads/${slug}?batch=${id}`;
 
   return (
-    <Shell
-      crumbs={
+    <AppShell
+      header={
         <>
-          <Link href="/" className="rounded hover:text-ink">
-            Batches
-          </Link>
-          <ChevronRight className="size-3.5" />
-          <span className="truncate text-ink first-letter:uppercase">{batchName(id)}</span>
+          <Crumb href="/app">Dashboard</Crumb>
+          <ChevronRight className="size-3.5 shrink-0" />
+          <Crumb>{batchName(id)}</Crumb>
         </>
       }
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-[28px] font-semibold first-letter:uppercase tracking-[-0.02em]">{batchName(id)}</h1>
+          <h1 className="text-[36px] font-black leading-[0.95] tracking-[-0.03em] [word-spacing:0.06em] first-letter:uppercase">{batchName(id)}</h1>
           <p className="num mt-1 text-[15px] text-ink-2">
             {data ? `${leads.length} leads` : "Loading…"}
             {running && (
@@ -140,11 +120,11 @@ function BatchView() {
                 <span className="pc-live size-1.5 rounded-full bg-action" /> Pipeline running
               </span>
             )}
-            {data?.run.state === "failed" && <span className="ml-3 font-medium text-fail">Last run failed. Check the log.</span>}
+            {data?.run.state === "failed" && <span className="ml-3 font-medium text-fail">Last run failed. Open the log for details.</span>}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="ghost" onClick={() => setShowLog((s) => !s)} aria-expanded={showLog}>
+          <Button variant="ghost" onClick={() => setShowLog(true)}>
             <ScrollText className="size-4" strokeWidth={1.75} /> Log
           </Button>
           {anyStarted && (
@@ -161,26 +141,21 @@ function BatchView() {
       </div>
 
       {runError && (
-        <p role="alert" className="mt-4 rounded-lg bg-fail-tint px-4 py-3 text-sm text-fail">
+        <p role="alert" className="mt-4 rounded-lg bg-fail-tint px-4 py-2.5 text-sm text-fail">
           {runError}
         </p>
       )}
-
-      {waitingCount > 0 && (
-        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-wait/25 bg-wait-tint px-5 py-4 text-sm">
+      {counts.waiting > 0 && (
+        <p className="mt-4 rounded-lg border border-wait/25 bg-wait-tint px-4 py-2.5 text-sm text-ink-2">
           <span className="font-medium text-wait">
-            {waitingCount} {waitingCount === 1 ? "lead is" : "leads are"} waiting on Stitch screens.
-          </span>
-          <span className="text-ink-2">
-            Run <code className="rounded bg-surface/70 px-1.5 py-0.5 font-mono text-[13px] text-ink">/stitch-batch</code> in Claude Code,
-            then press Resume after Stitch.
-          </span>
-        </div>
+            {counts.waiting} {counts.waiting === 1 ? "lead is" : "leads are"} waiting on Stitch screens.
+          </span>{" "}
+          Run <code className="rounded bg-surface/70 px-1.5 py-0.5 font-mono text-[13px] text-ink">/stitch-batch</code> in Claude Code, then Resume
+          after Stitch.
+        </p>
       )}
 
-      {showLog && <LogPanel id={id} onClose={() => setShowLog(false)} />}
-
-      <div className="mt-8 flex flex-wrap items-center gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
         <div role="tablist" aria-label="Filter leads" className="flex flex-wrap gap-1 rounded-lg bg-sunken p-1">
           {FILTERS.map((f) => (
             <button
@@ -192,11 +167,11 @@ function BatchView() {
                 setPage(0);
               }}
               className={`num inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm transition-colors ${
-                filter === f.key ? "bg-surface font-medium text-ink shadow-[0_1px_2px_rgb(18_22_31/0.08)]" : "text-ink-2 hover:text-ink"
+                filter === f.key ? "bg-surface font-medium text-ink" : "text-ink-2 hover:text-ink"
               }`}
             >
               {f.label}
-              <span className={filter === f.key ? "text-ink-3" : "text-ink-3/80"}>{counts[f.key] ?? 0}</span>
+              <span className="text-ink-3">{counts[f.key] ?? 0}</span>
             </button>
           ))}
         </div>
@@ -215,24 +190,16 @@ function BatchView() {
         </label>
       </div>
 
-      <section className="mt-4">
-        {loading && !data && (
-          <div className="space-y-2">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-14" />
-            ))}
-          </div>
-        )}
+      <section className="mt-4 flex min-h-0 flex-1 flex-col">
+        {loading && !data && <Skeleton className="flex-1" />}
         {error && !data && <ErrorState error={error} onRetry={reload} />}
         {data && (
-          <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(18_22_31/0.04)]">
+          <div className="min-h-0 flex-1 overflow-auto border border-ink bg-surface">
             <table className="w-full min-w-[860px] text-left text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-surface">
                 <tr className="border-b border-line text-xs text-ink-3">
                   <th className="px-5 py-3 font-medium">Business</th>
-                  <th className="px-3 py-3 font-medium">
-                    Progress <span className="font-normal">({PHASES.map((p) => p.label).join(" → ")})</span>
-                  </th>
+                  <th className="px-3 py-3 font-medium">Progress</th>
                   <th className="px-3 py-3 text-right font-medium">Issues</th>
                   <th className="px-3 py-3 text-right font-medium">Est. monthly loss</th>
                   <th className="px-3 py-3 font-medium">Review</th>
@@ -243,15 +210,11 @@ function BatchView() {
                 {slice.map((l) => (
                   <tr
                     key={l.lead_id}
-                    onClick={() => router.push(`/leads/${l.slug}?batch=${id}`)}
+                    onClick={() => router.push(leadHref(l.slug))}
                     className="group cursor-pointer border-b border-line transition-colors last:border-0 hover:bg-ground"
                   >
                     <td className="max-w-[320px] px-5 py-3">
-                      <Link
-                        href={`/leads/${l.slug}?batch=${id}`}
-                        className="block truncate font-medium text-ink"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <Link href={leadHref(l.slug)} className="block truncate font-medium text-ink" onClick={(e) => e.stopPropagation()}>
                         {l.business}
                       </Link>
                       <div className="mt-0.5 truncate text-xs text-ink-3">
@@ -285,8 +248,8 @@ function BatchView() {
                 ))}
                 {slice.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-sm text-ink-2">
-                      {q ? `No leads match “${q}”.` : "No leads in this view."}
+                    <td colSpan={6} className="px-5 py-14 text-center text-sm text-ink-2">
+                      {q ? `No leads match “${q}”.` : filter === "review" ? "Nothing to review yet. Leads appear here once their site is built." : "No leads in this view."}
                     </td>
                   </tr>
                 )}
@@ -295,7 +258,7 @@ function BatchView() {
           </div>
         )}
         {data && pages > 1 && (
-          <div className="num mt-4 flex items-center justify-between text-sm text-ink-2">
+          <div className="num mt-3 flex items-center justify-between text-sm text-ink-2">
             <span>
               {page * PAGE + 1}–{Math.min(shown.length, (page + 1) * PAGE)} of {shown.length}
             </span>
@@ -310,6 +273,16 @@ function BatchView() {
           </div>
         )}
       </section>
-    </Shell>
+
+      {showLog && <LogDrawer id={id} onClose={() => setShowLog(false)} />}
+    </AppShell>
+  );
+}
+
+export default function BatchPage() {
+  return (
+    <Suspense>
+      <BatchView />
+    </Suspense>
   );
 }

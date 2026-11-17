@@ -13,6 +13,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except login, its API route and static assets.
-  matcher: ["/((?!login|api/auth|_next/static|_next/image|favicon.ico|icon.svg).*)"],
+  // Only the product and its API need a session; the landing page and assets are public.
+  matcher: ["/app/:path*", "/api/pc/:path*"],
 };
